@@ -8,14 +8,20 @@ export class User {
   @Prop({ required: true, unique: true, lowercase: true })
   email: string;
 
-  @Prop({ required: true })
-  name: string;
+  @Prop({ required: false })
+  name?: string;
 
   @Prop({ required: false })
   avatar?: string;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   isEmailVerified: boolean;
+
+  @Prop({ required: false })
+  verificationCode?: string;
+
+  @Prop({ required: false })
+  verificationCodeExpires?: Date;
 
   @Prop({ default: true })
   isActive: boolean;

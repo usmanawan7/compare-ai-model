@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserDocument } from '../database/schemas/user.schema';
+import { EmailService } from './email.service';
 
 export interface OAuthUser {
   googleId: string;
@@ -19,6 +20,7 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async validateOAuthUser(oauthUser: OAuthUser): Promise<UserDocument> {
@@ -85,5 +87,104 @@ export class AuthService {
       lastLoginAt: user.lastLoginAt,
       createdAt: (user as any).createdAt,
     };
+  }
+
+  // Email verification methods
+  async sendVerificationCode(email: string, name?: string) {
+    try {
+      // Generate 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store verification code in user record (create or update)
+      let user = await this.userModel.findOne({ email });
+      
+      if (!user) {
+        // Create new user with verification code
+        user = new this.userModel({
+          email,
+          name: name || null,
+          isEmailVerified: false,
+          verificationCode,
+          verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+          provider: 'email',
+        });
+        await user.save();
+        this.logger.log(`New user ${email} created for email verification`);
+      } else {
+        // Update existing user with new verification code
+        user.verificationCode = verificationCode;
+        user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        await user.save();
+        this.logger.log(`Verification code updated for existing user ${email}`);
+      }
+
+      // Send verification email
+      const emailSent = await this.emailService.sendVerificationCode(email, verificationCode, name);
+      
+      if (emailSent) {
+        return {
+          success: true,
+          message: 'Verification code sent successfully',
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Failed to send verification code',
+        };
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send verification code to ${email}:`, error);
+      return {
+        success: false,
+        message: 'Failed to send verification code',
+      };
+    }
+  }
+
+  async verifyCode(email: string, code: string) {
+    try {
+      const user = await this.userModel.findOne({ 
+        email, 
+        verificationCode: code,
+        verificationCodeExpires: { $gt: new Date() }
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'Invalid or expired verification code',
+        };
+      }
+
+      // Mark email as verified and clear verification code
+      user.isEmailVerified = true;
+      user.verificationCode = undefined;
+      user.verificationCodeExpires = undefined;
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      // Generate JWT token
+      const token = await this.generateJwtToken(user);
+
+      this.logger.log(`User ${email} verified successfully`);
+
+      return {
+        success: true,
+        message: 'Email verified successfully',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          isEmailVerified: user.isEmailVerified,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Failed to verify code for ${email}:`, error);
+      return {
+        success: false,
+        message: 'Failed to verify code',
+      };
+    }
   }
 }

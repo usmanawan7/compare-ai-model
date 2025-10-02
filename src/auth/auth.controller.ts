@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, Request, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Request, Res, HttpStatus, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -46,5 +46,18 @@ export class AuthController {
     return {
       message: 'Logged out successfully',
     };
+  }
+
+  // Email verification endpoints
+  @Post('send-code')
+  async sendVerificationCode(@Body() body: { email: string; name?: string }) {
+    const { email, name } = body;
+    return this.authService.sendVerificationCode(email, name);
+  }
+
+  @Post('verify-code')
+  async verifyCode(@Body() body: { email: string; code: string }) {
+    const { email, code } = body;
+    return this.authService.verifyCode(email, code);
   }
 }
