@@ -32,6 +32,6 @@ export default (): AppConfig => ({
     port: parseInt(process.env.WEBSOCKET_PORT || '3000', 10),
   },
   cors: {
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', 'http://localhost:3001'],
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3001'],
   },
 });

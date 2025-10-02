@@ -1,39 +1,50 @@
-import { Controller, Post, Body, UseGuards, Get, Request } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Request, Res, HttpStatus } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
-import { SendVerificationCodeDto, VerifyCodeDto, LoginDto } from '../common/dto/auth.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('send-code')
-  async sendVerificationCode(@Body() dto: SendVerificationCodeDto) {
-    return this.authService.sendVerificationCode(dto);
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Initiates Google OAuth flow
   }
 
-  @Post('verify-code')
-  async verifyCode(@Body() dto: VerifyCodeDto) {
-    return this.authService.verifyCode(dto);
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Request() req, @Res() res: Response) {
+    const user = req.user;
+    const token = await this.authService.generateJwtToken(user);
+    
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}&provider=google`);
   }
 
-  @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
-  }
 
-  @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
-    return req.user;
+  @UseGuards(AuthGuard('jwt'))
+  async getProfile(@Request() req) {
+    return this.authService.getUserProfile(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@Request() req) {
+  @UseGuards(AuthGuard('jwt'))
+  async getMe(@Request() req) {
     return {
       user: req.user,
       message: 'User authenticated successfully',
+    };
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  async logout() {
+    return {
+      message: 'Logged out successfully',
     };
   }
 }
