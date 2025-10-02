@@ -47,10 +47,12 @@ export class EmailService {
       }
 
       const emailContent = this.generateEmailTemplate(code, name);
-      const fromEmail = this.configService.get<string>('SMTP_USER') || 'noreply@yourapp.com';
+      const fromEmail = this.configService.get<string>('SMTP_USER') === 'resend' 
+        ? 'onboarding@resend.dev' 
+        : this.configService.get<string>('SMTP_USER') || 'noreply@yourapp.com';
 
       const mailOptions = {
-        from: `"No-Reply - AI Playground" <${fromEmail}>`,
+        from: `"AI Playground" <${fromEmail}>`,
         to: email,
         subject: 'Your AI Playground Verification Code',
         html: emailContent,
@@ -90,7 +92,9 @@ export class EmailService {
         return false;
       }
 
-      const fromEmail = this.configService.get<string>('SMTP_USER') || 'noreply@yourapp.com';
+      const fromEmail = this.configService.get<string>('SMTP_USER') === 'resend' 
+        ? 'onboarding@resend.dev' 
+        : this.configService.get<string>('SMTP_USER') || 'noreply@yourapp.com';
       
       const mailOptions = {
         from: `"AI Playground Test" <${fromEmail}>`,
